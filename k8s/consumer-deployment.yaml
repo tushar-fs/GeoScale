@@ -1,0 +1,35 @@
+# Consumer: 3 replicas = 1 per Kafka partition for max parallelism.
+# All pods share the same consumer group, so Kafka assigns each one
+# a different partition automatically.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: consumer
+  labels:
+    app: consumer
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: consumer
+  template:
+    metadata:
+      labels:
+        app: consumer
+    spec:
+      containers:
+        - name: consumer
+          image: geoscale-consumer:latest
+          imagePullPolicy: Never
+          env:
+            - name: KAFKA_BROKER
+              value: "host.minikube.internal:9092"
+            - name: PG_CONN_STR
+              value: "host=host.minikube.internal port=5432 user=geoscale password=geoscale dbname=geoscale sslmode=disable"
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "64Mi"
+            limits:
+              cpu: "500m"
+              memory: "128Mi"
