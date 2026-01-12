@@ -7,19 +7,13 @@ Simulates a fleet of autonomous vehicles sending real-time telemetry (GPS + orie
 ## Architecture
 
 ```
-┌──────────────────┐       ┌─────────────────────┐       ┌──────────────────┐
-│  Go Producer     │       │  Kafka              │       │  Go Consumers    │
-│                  │       │  topic:              │       │  (consumer group │
-│  5 goroutines    │──────▶│  spatial-events      │──────▶│  geoscale-workers│
-│  (1 per vehicle) │       │                     │       │                  │
-│                  │       │  ┌─────────────┐    │       │  Pod 0 ← Part 0 │
-│  av-000          │       │  │ Partition 0 │    │       │  Pod 1 ← Part 1 │
-│  av-001          │       │  │ Partition 1 │    │       │  Pod 2 ← Part 2 │
-│  av-002          │       │  │ Partition 2 │    │       │                  │
-│  av-003          │       │  └─────────────┘    │       │  validate →      │
-│  av-004          │       │                     │       │  measure latency │
-│                  │       │  key=vehicle_id      │       │  insert → PG     │
-└──────────────────┘       └─────────────────────┘       └────────┬─────────┘
+┌─────────────────┐     ┌───────────────────┐     ┌──────────────────┐
+│  Go Producer    │     │  Kafka            │     │  Go Consumer(s)  │
+│                 │     │                   │     │                  │
+│  100 goroutines │────▶│  spatial-events   │────▶│  validate data   │
+│  (1 per vehicle)│     │  (3 partitions)   │     │  measure latency │
+│                 │     │                   │     │  insert → PG     │
+└─────────────────┘     └───────────────────┘     └──────────────────┘
                                                                   │
                                                                   ▼
                                                          ┌──────────────────┐
