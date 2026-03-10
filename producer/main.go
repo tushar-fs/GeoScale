@@ -24,8 +24,8 @@ import (
 	"github.com/segmentio/kafka-go"
 )
 
-// SpatialEvent is the 6DoF telemetry payload. Matches our Postgres schema.
-// Using quaternions for orientation because they avoid gimbal lock.
+// SpatialEvent is the 6DoF telemetry payload. It matches my Postgres schema.
+// I used quaternions for orientation because they avoid gimbal lock.
 type SpatialEvent struct {
 	VehicleID string  `json:"vehicle_id"`
 	Timestamp int64   `json:"timestamp"` // unix nanos, used by consumer for latency tracking
@@ -38,7 +38,7 @@ type SpatialEvent struct {
 	Qw        float64 `json:"qw"`
 }
 
-// getEnv lets us use the same binary locally (defaults) and in K8s (env vars).
+// getEnv lets me use the same binary locally (defaults) and in K8s (env vars).
 func getEnv(key, fallback string) string {
 	if v := os.Getenv(key); v != "" {
 		return v
@@ -55,7 +55,7 @@ var (
 )
 
 // generatePose creates a random 6DoF pose around San Francisco.
-// The quaternion is normalized to unit length (|q| = 1) which is
+// I normalize the quaternion to unit length (|q| = 1) which is
 // required for it to represent a valid rotation.
 func generatePose(vehicleID string) SpatialEvent {
 	lat := 37.7749 + (rand.Float64()-0.5)*0.01
@@ -84,7 +84,7 @@ func generatePose(vehicleID string) SpatialEvent {
 
 // simulateVehicle runs one goroutine per vehicle. It generates a pose every
 // sendInterval and pushes it to Kafka. The select{} loop watches for context
-// cancellation so we can shut down cleanly on Ctrl+C.
+// cancellation so I can shut down the service cleanly on Ctrl+C.
 func simulateVehicle(ctx context.Context, wg *sync.WaitGroup, writer *kafka.Writer, id string) {
 	defer wg.Done()
 
@@ -107,8 +107,8 @@ func simulateVehicle(ctx context.Context, wg *sync.WaitGroup, writer *kafka.Writ
 				continue
 			}
 
-			// Using vehicle_id as the key ensures all messages from the same
-			// vehicle go to the same partition — preserves per-vehicle ordering.
+			// I use vehicle_id as the key to ensure all messages from the same
+			// vehicle go to the same partition — preserving per-vehicle ordering.
 			err = writer.WriteMessages(ctx, kafka.Message{
 				Key:   []byte(id),
 				Value: data,
@@ -130,13 +130,13 @@ func main() {
 	log.Printf("vehicles=%d interval=%v broker=%s topic=%s",
 		numVehicles, sendInterval, kafkaBroker, kafkaTopic)
 
-	// Graceful shutdown: context cancels on SIGINT/SIGTERM.
+	// I added graceful shutdown so context cancels on SIGINT/SIGTERM.
 	// This is important in K8s where pods get SIGTERM on scale-down.
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	// One shared writer for all goroutines. kafka.Writer is thread-safe
-	// and batches writes internally, so there's no reason to create
+	// I instantiated one shared writer for all goroutines. kafka.Writer is thread-safe
+	// and batches writes internally, so I didn't need to create
 	// one per goroutine — that would just waste TCP connections.
 	writer := &kafka.Writer{
 		Addr:         kafka.TCP(kafkaBroker),

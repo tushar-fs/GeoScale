@@ -23,8 +23,8 @@ import (
 )
 
 // SpatialEvent must match the producer's struct exactly.
-// Duplicating it here instead of sharing a package — keeps each service
-// independently deployable, which is the whole point of microservices.
+// I duplicated it here instead of sharing a package to keep each service
+// independently deployable, following microservice best practices.
 type SpatialEvent struct {
 	VehicleID string  `json:"vehicle_id"`
 	Timestamp int64   `json:"timestamp"`
@@ -57,8 +57,8 @@ var (
 )
 
 // isValidEvent checks that coordinates are within valid ranges and the
-// quaternion is normalized. This is the boundary between untrusted Kafka
-// data and our trusted database — better to drop bad data than corrupt the DB.
+// quaternion is normalized. This acts as a boundary between untrusted Kafka
+// data and my trusted database — I'd rather drop bad data than corrupt the DB.
 func isValidEvent(e SpatialEvent) (bool, string) {
 	if e.Latitude < -90 || e.Latitude > 90 {
 		return false, fmt.Sprintf("invalid latitude: %.4f", e.Latitude)
@@ -77,7 +77,7 @@ func isValidEvent(e SpatialEvent) (bool, string) {
 }
 
 // connectDB sets up a connection pool to Postgres.
-// Go's database/sql handles pooling automatically — you just configure
+// I leverage Go's database/sql to handle pooling automatically — I just configure
 // the max connections and it reuses them across goroutines.
 func connectDB() (*sql.DB, error) {
 	db, err := sql.Open("postgres", pgConnStr)
@@ -98,10 +98,10 @@ func connectDB() (*sql.DB, error) {
 	return db, nil
 }
 
-// processMessages is the main loop. Reads from Kafka, validates, measures
-// latency, and inserts into Postgres. Uses ReadMessage which auto-commits
-// offsets — so if we crash before inserting, the message gets redelivered
-// on restart (at-least-once semantics).
+// processMessages is the main loop. It reads from Kafka, validates, measures
+// latency, and inserts into Postgres. I use ReadMessage which auto-commits
+// offsets — so if the consumer crashes before inserting, the message gets redelivered
+// on restart, giving me at-least-once semantics.
 func processMessages(ctx context.Context, reader *kafka.Reader, db *sql.DB) {
 	insertSQL := `
 		INSERT INTO spatial_events 
@@ -141,8 +141,8 @@ func processMessages(ctx context.Context, reader *kafka.Reader, db *sql.DB) {
 			continue
 		}
 
-		// Latency = time since the producer stamped the message.
-		// This measures the full pipeline: producer -> kafka -> consumer.
+		// Latency is the time since the producer stamped the message.
+		// I use this snippet to measure the full pipeline: producer -> kafka -> consumer.
 		producedAt := time.Unix(0, event.Timestamp)
 		latency := time.Since(producedAt)
 
@@ -183,8 +183,8 @@ func main() {
 	}
 	defer db.Close()
 
-	// GroupID is the key — all consumers with the same group ID share
-	// the partitions. With 3 replicas and 3 partitions, each pod gets
+	// I set GroupID so all consumers with the same ID share
+	// the partitions. Since I deploy 3 replicas and 3 partitions, each pod gets
 	// exactly one partition. Kafka handles the assignment automatically.
 	reader := kafka.NewReader(kafka.ReaderConfig{
 		Brokers:     []string{kafkaBroker},
